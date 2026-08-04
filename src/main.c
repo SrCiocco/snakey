@@ -17,6 +17,7 @@ void handle_input(Player *player);
 void update_player(Player *player, float deltaTime, float *moveTimer);
 void draw_debug_info(const Player *player);
 void draw_player(Player *player);
+void player_setup(Player *player);
 
 int main(void)
 {
@@ -26,11 +27,8 @@ int main(void)
 	InitWindow(width, height, "Snakey: a snake clone with basic networking functionality!");
 	SetTargetFPS(60);
 
-	Player player = {
-		.position = {(width / 2.0f), (height / 2.0f)},
-		.direction = {0, 0},
-		.icon = {player.position.x, player.position.y, GRID_SIZE, GRID_SIZE}
-	};
+	Player player;
+	player_setup(&player);
 
 	if (!IsWindowReady())
 		return -1;
@@ -94,4 +92,20 @@ void draw_player(Player *player)
 	player->icon.y = player->position.y;
 
 	DrawRectangleRec(player->icon, RED);
+}
+
+
+void player_setup(Player *player)
+{
+	if (!player)
+		return;
+
+	player->position.x = (float) GetScreenWidth() / 2.0f;
+	player->position.y = (float) GetScreenHeight() / 2.0f;
+	player->direction.x = 0.0f;
+	player->direction.y = 0.0f;
+	player->icon.x = player->position.x;
+	player->icon.y = player->position.y;
+	player->icon.width = GRID_SIZE;
+	player->icon.height = GRID_SIZE;
 }
