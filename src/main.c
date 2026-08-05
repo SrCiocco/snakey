@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include "raylib.h"
 
-#define WIDTH  800
-#define HEIGHT 600
+#define WIDTH  640
+#define HEIGHT 480
 #define FONT_SIZE 20
-#define GRID_SIZE 12
+#define GRID_SIZE 20
 #define TICK_RATE 0.10f /* 100ms to wait before moving */
 #define MAX_SNAKE_LENGTH 256
 
@@ -13,6 +13,7 @@ typedef struct Player {
 	int actualLength;
 	Vector2 direction;
 	Rectangle icon;
+	bool alive;
 } Player;
 
 enum {
@@ -34,41 +35,17 @@ void spawn_food(Food *food);
 void setup_food(Food *food);
 void draw_food(Food *food);
 void update_game_state(Player *player, Food *food);
+void draw_game_over();
+void game_loop(Player *player, Food *food);
 
 int main(void)
 {
-	int width = WIDTH;
-	int height = HEIGHT;
-
-	InitWindow(width, height, "Snakey: a snake clone with basic networking functionality!");
-	SetTargetFPS(60);
 
 	Player player = {0};
-	player_setup(&player);
 
 	Food food = {0};
-	setup_food(&food);
 
-	if (!IsWindowReady())
-		return -1;
-
-	float moveTimer = 0.0f;
-
-	while(!WindowShouldClose()) {
-		float deltaTime = GetFrameTime();
-		handle_input(&player);
-		update_player(&player, deltaTime, &moveTimer);
-		spawn_food(&food);
-		update_game_state(&player, &food);
-		BeginDrawing();
-		ClearBackground(WHITE);
-		draw_debug_info(&player, &food);
-		draw_player(&player);
-		draw_food(&food);
-		EndDrawing();
-	}
-
-	CloseWindow();
+	game_loop(&player, &food);
 
 	return 0;
 }
@@ -126,9 +103,6 @@ void draw_player(const Player *player)
 
 void player_setup(Player *player)
 {
-	if (!player)
-		return;
-
 	int x = GetScreenWidth() / 2;
 	int y = GetScreenHeight() / 2;
 
@@ -141,6 +115,7 @@ void player_setup(Player *player)
 	player->icon.y = player->body[HEAD].y;
 	player->icon.width = GRID_SIZE;
 	player->icon.height = GRID_SIZE;
+	player->alive = true;
 }
 
 void spawn_food(Food *food)
@@ -151,16 +126,13 @@ void spawn_food(Food *food)
 	int x = GetScreenWidth() / GRID_SIZE;
 	int y = GetScreenHeight() / GRID_SIZE;
 
-	food->position.x = (float) (GetRandomValue(0, x - 1) * GRID_SIZE);
-	food->position.y = (float) (GetRandomValue(0, y - 1) * GRID_SIZE);
+	food->position.x = (float) (GetRandomValue(x / 2, x - 1) * GRID_SIZE);
+	food->position.y = (float) (GetRandomValue(y / 2, y - 1) * GRID_SIZE);
 	food->canSpawn = false;
 }
 
 void setup_food(Food *food)
 {
-	if (!food)
-		return;
-
 	food->canSpawn = true;
 	food->icon.width = GRID_SIZE;
 	food->icon.height = GRID_SIZE;
@@ -178,7 +150,74 @@ void update_game_state(Player *player, Food *food)
 {
 	if (food->position.x == player->body[HEAD].x && food->position.y == player->body[HEAD].y) {
 		food->canSpawn = true;
-		if (player->actualLength < MAX_SNAKE_LENGTH)
+		if (player->actualLength < MAX_SNAKE_LENGTH) {
 			player->actualLength++;
+		}
 	}
+
+	for (int i = 1; i < player->actualLength; i++) {
+		if ((player->body[HEAD].x == player->body[i].x) && (player->body[HEAD].y == player->body[i].y)) {
+			player->alive = false;
+		}
+	}
+}
+
+void draw_game_over()
+{
+	const int width = (GetScreenWidth() / 2);
+	const int height = (GetScreenHeight() / 2);
+	DrawText("Wanna try again?", width, height, FONT_SIZE, RED);
+	DrawText("(Y)es or (N)o", width, height + 20, FONT_SIZE, RED);
+}
+
+void game_loop(Player *player, Food *food)
+{
+
+	int width = WIDTH;
+	int height = HEIGHT;
+
+	InitWindow(width, height, "Snakey: a snake clone with basic networking functionality!");
+	SetTargetFPS(60);
+
+	if (!IsWindowReady())
+		return;
+
+	float moveTimer = 0.0f;
+
+	bool exitGame = false;
+
+	player_setup(player);
+	setup_food(food);
+
+	while (!WindowShouldClose() && !exitGame) {
+		float deltaTime = GetFrameTime();
+		if (player->alive) {
+			handle_input(player);
+			update_player(player, deltaTime, &moveTimer);
+			spawn_food(food);
+			update_game_state(player, food);
+		}
+		else {
+			if (IsKeyPressed(KEY_Y)) {
+				player_setup(player);
+				setup_food(food);
+				moveTimer = 0.0f;
+			}
+			else if (IsKeyPressed(KEY_N)) {
+				exitGame = true;
+			}
+		}
+		BeginDrawing();
+		ClearBackground(WHITE);
+		if (player->alive) {
+			draw_debug_info(player, food);
+			draw_player(player);
+			draw_food(food);
+		}
+		else {
+			draw_game_over();
+		}
+		EndDrawing();
+	}
+	CloseWindow();
 }
