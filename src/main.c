@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include "raylib.h"
 
-#define WIDTH  640
-#define HEIGHT 480
+#define SCREEN_WIDTH  640
+#define SCREEN_HEIGHT 480
 #define FONT_SIZE 20
 #define GRID_SIZE 20
 #define TICK_RATE 0.10f /* 100ms to wait before moving */
@@ -30,13 +30,14 @@ void handle_input(Player *player);
 void update_player(Player *player, float deltaTime, float *moveTimer);
 void draw_debug_info(const Player *player, const Food *food);
 void draw_player(const Player *player);
-void player_setup(Player *player);
-void spawn_food(Food *food);
+void player_setup(Player *player, const int screenWidth, const int screenHeight);
+void spawn_food(Food *food, const int screenWidth, const int screenHeight);
 void setup_food(Food *food);
 void draw_food(Food *food);
 void update_game_state(Player *player, Food *food);
-void draw_game_over();
+void draw_game_over(const int screenWidth, const int screenHeight);
 void game_loop(Player *player, Food *food);
+void draw_grid(const int screenWidth, const int screenHeight, const Color color);
 
 int main(void)
 {
@@ -74,7 +75,7 @@ void draw_debug_info(const Player *player, const Food *food)
 
 }
 
-void update_player(Player *player, float deltaTime, float *moveTimer)
+void update_player(Player *player, const float deltaTime, float *moveTimer)
 {
 	*moveTimer += deltaTime;
 
@@ -95,16 +96,16 @@ void update_player(Player *player, float deltaTime, float *moveTimer)
 void draw_player(const Player *player)
 {
 	for (int i = 0; i < player->actualLength; i++) {
-		Color color = (i == 0) ? MAROON: GREEN; /* Head will be different from the body */
+		Color color = (i == 0) ? GREEN: LIME; /* Head will be different from the body */
 		DrawRectangle(player->body[i].x, player->body[i].y, GRID_SIZE, GRID_SIZE, color);
 	}
 }
 
 
-void player_setup(Player *player)
+void player_setup(Player *player, const int screenWidth, const int screenHeight)
 {
-	int x = GetScreenWidth() / 2;
-	int y = GetScreenHeight() / 2;
+	const int x = screenWidth / 2;
+	const int y = screenHeight / 2;
 
 	player->actualLength = 1;
 	player->body[HEAD].x = (float) ((x / GRID_SIZE) * GRID_SIZE); /* Truncate position to grid cell and cast to float for Raylib's sake */
@@ -118,13 +119,13 @@ void player_setup(Player *player)
 	player->alive = true;
 }
 
-void spawn_food(Food *food)
+void spawn_food(Food *food, const int screenWidth, const int screenHeight)
 {
 	if (!food->canSpawn)
 		return;
 
-	int x = GetScreenWidth() / GRID_SIZE;
-	int y = GetScreenHeight() / GRID_SIZE;
+	const int x = screenWidth / GRID_SIZE;
+	const int y = screenHeight / GRID_SIZE;
 
 	food->position.x = (float) (GetRandomValue(x / 2, x - 1) * GRID_SIZE);
 	food->position.y = (float) (GetRandomValue(y / 2, y - 1) * GRID_SIZE);
@@ -162,21 +163,36 @@ void update_game_state(Player *player, Food *food)
 	}
 }
 
-void draw_game_over()
+void draw_game_over(const int screenWidth, const int screenHeight)
 {
-	const int width = (GetScreenWidth() / 2);
-	const int height = (GetScreenHeight() / 2);
-	DrawText("Wanna try again?", width, height, FONT_SIZE, RED);
-	DrawText("(Y)es or (N)o", width, height + 20, FONT_SIZE, RED);
+	const int textX = screenWidth / 2;
+	const int textY = screenHeight / 2;
+
+	DrawText("Wanna try again?", textX, textY, FONT_SIZE, RED);
+	DrawText("(Y)es or (N)o", textX, textY + FONT_SIZE, FONT_SIZE, RED);
+}
+
+void draw_grid(const int screenWidth, const int screenHeight, const Color color)
+{
+	/* Draw color pixels if cells numbers are even */
+	for (int y = 0; y < screenHeight; y += GRID_SIZE) {
+		for (int x = 0; x < screenWidth; x += GRID_SIZE) {
+			int cellX = x / GRID_SIZE;
+			int cellY = y / GRID_SIZE;
+			
+			if((cellX + cellY) % 2 == 0)
+				DrawRectangle(x, y, GRID_SIZE, GRID_SIZE, color);
+		}
+	}
 }
 
 void game_loop(Player *player, Food *food)
 {
 
-	int width = WIDTH;
-	int height = HEIGHT;
+	const int screenWidth = SCREEN_WIDTH;
+	const int screenHeight = SCREEN_HEIGHT;
 
-	InitWindow(width, height, "Snakey: a snake clone with basic networking functionality!");
+	InitWindow(screenWidth, screenHeight, "Snakey: a snake clone with basic networking functionality!");
 	SetTargetFPS(60);
 
 	if (!IsWindowReady())
@@ -186,7 +202,7 @@ void game_loop(Player *player, Food *food)
 
 	bool exitGame = false;
 
-	player_setup(player);
+	player_setup(player, screenWidth, screenHeight);
 	setup_food(food);
 
 	while (!WindowShouldClose() && !exitGame) {
@@ -194,12 +210,12 @@ void game_loop(Player *player, Food *food)
 		if (player->alive) {
 			handle_input(player);
 			update_player(player, deltaTime, &moveTimer);
-			spawn_food(food);
+			spawn_food(food, screenWidth, screenHeight);
 			update_game_state(player, food);
 		}
 		else {
 			if (IsKeyPressed(KEY_Y)) {
-				player_setup(player);
+				player_setup(player, screenWidth, screenHeight);
 				setup_food(food);
 				moveTimer = 0.0f;
 			}
@@ -208,14 +224,16 @@ void game_loop(Player *player, Food *food)
 			}
 		}
 		BeginDrawing();
-		ClearBackground(WHITE);
+		ClearBackground(DARKPURPLE);
 		if (player->alive) {
+			draw_grid(screenWidth, screenHeight, DARKBROWN);
 			draw_debug_info(player, food);
 			draw_player(player);
 			draw_food(food);
 		}
 		else {
-			draw_game_over();
+			draw_grid(screenWidth, screenHeight, DARKBROWN);
+			draw_game_over(screenWidth, screenHeight);
 		}
 		EndDrawing();
 	}
